@@ -8,7 +8,7 @@ import { HiCheckCircle } from "react-icons/hi";
 function App() {
   const web3 = new Web3(window.ethereum);
   window.ethereum.enable();
-  const contractAddress = "0xc4646e832566fed96c591c7252ff76c30153ee01";
+  const contractAddress = "0x620964fab144af97bf77c9f26b1415193937b425";
   const todoContract = new web3.eth.Contract(contractABI, contractAddress);
   const [tasks, setTasks] = useState([]);
   const [taskInput, setTaskInput] = useState("");
@@ -18,57 +18,53 @@ function App() {
   }, []);
 
   const loadTasks = async () => {
-    const taskCount = await todoContract.methods.getTaskCount().call();
-    let taskList = [];
-
-    for (let i = 0; i < taskCount; i++) {
-      const task = await todoContract.methods.tasks(i).call();
-      if (!task.deleted) {
-        taskList.push(task);
-      }
-    }
-
-    setTasks(taskList);
+    const taskList = await todoContract.methods.getAllTasks().call();
+    const filteredTasks = taskList.filter((task) => !task.deleted);
+    setTasks(filteredTasks);
   };
-
+  
   const addTask = async (e) => {
     e.preventDefault();
     if (!taskInput) {
       return;
     }
-    await todoContract.methods
-      .addTask(taskInput)
-      .send({ from: window.ethereum.selectedAddress });
+    await todoContract.methods.addTask(taskInput).send({
+      from: window.ethereum.selectedAddress,
+    });
     setTaskInput("");
     loadTasks();
   };
-
-  const toggleComplete = async (index) => {
-    await todoContract.methods
-      .toggleComplete(index - 1)
-      .send({ from: window.ethereum.selectedAddress });
+  
+  const toggleComplete = async (taskId) => {
+    await todoContract.methods.toggleComplete(taskId).send({
+      from: window.ethereum.selectedAddress,
+    });
     loadTasks();
+  };
+  
+  const toggleDelete = async (taskId) => {
+    await todoContract.methods.toggleDelete(taskId).send({
+      from: window.ethereum.selectedAddress,
+    });
+    loadTasks();
+  };
+  
+  const getTaskCount = async () => {
+    const taskList = await todoContract.methods.getAllTasks().call();
+    const filteredTasks = taskList.filter((task) => !task.deleted);
+    return filteredTasks.length;
   };
 
   const deleteAll = async () => {
-    const count = await todoContract.methods
-      .getTaskCount()
-      .call({ from: window.ethereum.selectedAddress });
-    for (let i = 0; i < count; i++) {
-      await todoContract.methods
-        .toggleDelete(i)
-        .send({ from: window.ethereum.selectedAddress });
+    const taskCount = await getTaskCount();
+    for (let i = 0; i < taskCount; i++) {
+      await todoContract.methods.toggleDelete(i).send({
+        from: window.ethereum.selectedAddress,
+      });
     }
     loadTasks();
-  };
-
-  const toggleDelete = async (index) => {
-    await todoContract.methods
-      .toggleDelete(index)
-      .send({ from: window.ethereum.selectedAddress });
-    loadTasks();
-  };
-
+  }
+  
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-xl mx-auto py-10">
@@ -94,26 +90,27 @@ function App() {
           {tasks.map((task, index) => (
             <li key={index} className="flex items-center justify-between py-2">
               <span
-                className={`task-content ${task.completed ? "completed" : ""}`}
+                className={`task-content ${task.completed ? "completed text-green-500" : ""}`}
               >
                 {task.content}
               </span>
+              <div className="flex flex-end">
               <button
-                className="delete-btn text-red-600 hover:text-red-800"
+                className="delete-btn text-red-600 hover:text-red-800 border-4 rounded-md p-2 me-3"
                 onClick={() => toggleDelete(index)}
-              >
+                >
                 <RiDeleteBinLine />
               </button>
-              {/* add button to mark tasks completed */}
               <button
-                className="success-btn text-green-600 hover:text-green-800 outline-10"
+                className="success-btn text-green-600 hover:text-green-800 border-4 rounded-md p-2"
                 onClick={() => toggleComplete(index)}
-              >
-                Completed
+                >
+                <HiCheckCircle />
               </button>
+                </div>
               {task.completed && (
                 <span className="task-status text-green-500 ml-4">
-                  <HiCheckCircle />
+                  Completed
                 </span>
               )}
             </li>
